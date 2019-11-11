@@ -2,7 +2,11 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
 
+// load users db model
 const Users = require('./users-model');
+
+// load middlewares
+const middleware = require('../../middleware/middleware');
 
 // test route
 router.get('/test', (req, res) => {
@@ -12,6 +16,8 @@ router.get('/test', (req, res) => {
 
 // register user
 router.post('/register', (req, res) => {
+  const session = req.session;
+  session.email = req.body.email;
   const userData = {
     username: req.body.username,
     email: req.body.email,
@@ -28,7 +34,8 @@ router.post('/register', (req, res) => {
 });
 
 // login user
-router.post('/login', (req, res) => {
+router.post('/login', middleware.login, (req, res) => {
+  console.log(req.session.loggedIn);
   const userInfo = { email: req.body.email, password: req.body.password };
   Users.findByEmail(userInfo.email)
     .then(user => {
