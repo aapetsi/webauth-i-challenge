@@ -3,21 +3,18 @@ const bcrypt = require('bcryptjs');
 const router = express.Router();
 
 // load users db model
-const Users = require('./users-model');
+const Users = require('../../models/users-model');
 
 // load middlewares
 const middleware = require('../../middleware/middleware');
 
 // test route
 router.get('/test', (req, res) => {
-  console.log(req.session);
   res.status(200).json({ message: 'Users route works' });
 });
 
 // register user
 router.post('/register', (req, res) => {
-  const session = req.session;
-  session.email = req.body.email;
   const userData = {
     username: req.body.username,
     email: req.body.email,
@@ -33,18 +30,30 @@ router.post('/register', (req, res) => {
     );
 });
 
+// logout user
+router.get('/logout', (req, res) => {
+  if (req.session) {
+    req.session.destroy(err => {
+      if (err) {
+        res.send('error logging out');
+      } else {
+        res.send('logged out successfully');
+      }
+    });
+  }
+});
+
 // login user
-router.post('/login', middleware.login, (req, res) => {
-  console.log(req.session.loggedIn);
+router.post('/login', (req, res) => {
   const userInfo = { email: req.body.email, password: req.body.password };
+
   Users.findByEmail(userInfo.email)
     .then(user => {
-      if (!user) {
-        return res.status(404).json({ message: 'Invalid user credentials' });
-      } else if (bcrypt.compareSync(userInfo.password, user.password)) {
-        res.json({ message: `Welcome ${user.username}` });
+      if (user && bcrypt.compareSync(userInfo.password, user.password)) {
+        req.session.user = user;
+        res.status(200).json({ message: `Welcome ${user.username}` });
       } else {
-        res.status(400).json({ message: 'Invalid user credentials' });
+        res.status(401).json({ message: 'Invalid credentials' });
       }
     })
     .catch(err => {
@@ -53,12 +62,13 @@ router.post('/login', middleware.login, (req, res) => {
 });
 
 // get all users
-router.get('/', (req, res) => {
-  Users.find('apetsi')
+router.get('/', middleware.auth, (req, res) => {
+  Users.find()
     .then(users => {
       if (!users) {
         return res.status(404).json({ message: 'Users not found' });
       }
+      console.log(req.session);
       res.status(200).json(users);
     })
     .catch(err => {

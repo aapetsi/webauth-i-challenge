@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
 const session = require('express-session');
+const KnexSessionStore = require('connect-session-knex')(session);
 const cors = require('cors');
 
 const users = require('./routes/api/users');
@@ -10,15 +10,25 @@ const users = require('./routes/api/users');
 const app = express();
 
 // sessions middleware
-app.use(
-  session({
-    key: 'user_id',
-    secret: 'secret',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: true, expires: 6000000 }
+const sessionConfig = {
+  name: 'session_id',
+  secret: 'secret',
+  cookie: {
+    maxAge: 1000 * 60 * 60,
+    secure: false,
+    httpOnly: false
+  },
+  resave: false,
+  saveUninitialized: false,
+  store: new KnexSessionStore({
+    knex: require('./data/db-config'),
+    tablename: 'sessions',
+    sidfieldname: 'sid',
+    createtable: true,
+    clearInterval: 1000 * 60 * 60
   })
-);
+};
+app.use(session(sessionConfig));
 
 // cors middleware
 app.use(cors());
@@ -28,7 +38,6 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // express middleware
-app.use(cookieParser());
 app.use(express.json());
 
 // middleware routes
